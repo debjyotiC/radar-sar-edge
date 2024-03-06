@@ -14,7 +14,7 @@ byteBufferLength = 0
 # ------------------------------------------------------------------
 def print_generator(range_arr, doppler_array, range_doppler):
     plt.clf()
-    cs = plt.contourf(range_doppler)
+    cs = plt.contourf(range_arr[:128], doppler_array, range_doppler[:, :128])
     fig.colorbar(cs, shrink=0.9)
     fig.canvas.draw()
     plt.pause(0.1)
@@ -316,6 +316,8 @@ CLIport, Dataport = serialConfig(configFileName)
 
 # Get the configuration parameters from the configuration file
 configParameters = parseConfigFile(configFileName)
+
+print(configParameters)
 
 # Main loop
 detObj = {}
