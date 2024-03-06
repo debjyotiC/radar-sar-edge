@@ -12,7 +12,6 @@ byteBufferLength = 0
 
 
 # ------------------------------------------------------------------
-
 def print_generator(range_arr, doppler_array, range_doppler):
     plt.clf()
     cs = plt.contourf(range_doppler)
@@ -29,12 +28,12 @@ def serialConfig(configFileName):
     # Open the serial ports for the configuration and the data ports
 
     # Raspberry pi / Ubuntu
-    CLIport = serial.Serial('/dev/ttyACM0', 115200)
-    Dataport = serial.Serial('/dev/ttyACM1', 852272)
+    # CLIport = serial.Serial('/dev/ttyACM0', 115200)
+    # Dataport = serial.Serial('/dev/ttyACM1', 852272)
 
     # Windows
-    # CLIport = serial.Serial('COM6', 115200)
-    # Dataport = serial.Serial('COM7', 852272)
+    CLIport = serial.Serial('COM4', 115200)
+    Dataport = serial.Serial('COM5', 852272)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -340,6 +339,7 @@ while True:
         CLIport.close()
         Dataport.close()
         break
+
 
 
 
