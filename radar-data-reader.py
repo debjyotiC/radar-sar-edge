@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # TO DO: Add your own config file
-configFileName = 'config_files/AWR294X_Deb.cfg'
+configFileName = 'config_files/AWR294X_Range_profile.cfg'
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
@@ -14,8 +14,24 @@ byteBufferLength = 0
 # ------------------------------------------------------------------
 def print_generator(range_arr, doppler_array, range_doppler):
     plt.clf()
-    cs = plt.contourf(range_arr[:128], doppler_array, range_doppler[:, :128])
+
+    cs = plt.contourf(range_doppler.real)
     fig.colorbar(cs, shrink=0.9)
+    fig.canvas.draw()
+    plt.pause(0.1)
+
+
+def range_azimuth_generator(azimMapObject):
+    plt.clf()
+    cs = plt.contourf(azimMapObject["heatMap"])
+    fig.colorbar(cs, shrink=0.9)
+    fig.canvas.draw()
+    plt.pause(0.1)
+
+
+def range_profile_generator(rangeProfile):
+    plt.clf()
+    cs = plt.plot(rangeProfile[:128])
     fig.canvas.draw()
     plt.pause(0.1)
 
@@ -90,11 +106,11 @@ def parseConfigFile(configFileName):
     configParameters["numDopplerBins"] = numChirpsPerFrame / numTxAnt
     configParameters["numRangeBins"] = numAdcSamplesRoundTo2
     configParameters["rangeResolutionMeters"] = (3e8 * digOutSampleRate * 1e3) / (
-                2 * freqSlopeConst * 1e12 * numAdcSamples)
+            2 * freqSlopeConst * 1e12 * numAdcSamples)
     configParameters["rangeIdxToMeters"] = (3e8 * digOutSampleRate * 1e3) / (
-                2 * freqSlopeConst * 1e12 * configParameters["numRangeBins"])
+            2 * freqSlopeConst * 1e12 * configParameters["numRangeBins"])
     configParameters["dopplerResolutionMps"] = 3e8 / (
-                2 * startFreq * 1e9 * (idleTime + rampEndTime) * 1e-6 * configParameters["numDopplerBins"] * numTxAnt)
+            2 * startFreq * 1e9 * (idleTime + rampEndTime) * 1e-6 * configParameters["numDopplerBins"] * numTxAnt)
     configParameters["maxRange"] = (300 * 0.9 * digOutSampleRate) / (2 * freqSlopeConst * 1e3)
     configParameters["maxVelocity"] = 3e8 / (4 * startFreq * 1e9 * (idleTime + rampEndTime) * 1e-6 * numTxAnt)
 
@@ -173,7 +189,7 @@ def readAndParseData16xx(Dataport, configParameters):
 
     # If magicOK is equal to 1 then process the message
     if magicOK:
-        # word array to convert 4 bytes to a 32 bit number
+        # word array to convert 4 bytes to a 32-bit number
         word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
 
         # Initialize the pointer index
@@ -250,11 +266,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 # Make the necessary corrections and calculate the rest of the data
                 rangeVal = rangeIdx * configParameters["rangeIdxToMeters"]
                 dopplerIdx[dopplerIdx > (configParameters["numDopplerBins"] / 2 - 1)] = dopplerIdx[dopplerIdx > (
-                            configParameters["numDopplerBins"] / 2 - 1)] - 65535
+                        configParameters["numDopplerBins"] / 2 - 1)] - 65535
                 dopplerVal = dopplerIdx * configParameters["dopplerResolutionMps"]
-                # x[x > 32767] = x[x > 32767] - 65536
-                # y[y > 32767] = y[y > 32767] - 65536
-                # z[z > 32767] = z[z > 32767] - 65536
                 x = x / tlv_xyzQFormat
                 y = y / tlv_xyzQFormat
                 z = z / tlv_xyzQFormat
@@ -264,6 +277,18 @@ def readAndParseData16xx(Dataport, configParameters):
                           "doppler": dopplerVal, "peakVal": peakVal, "x": x, "y": y, "z": z}
 
                 dataOK = 1
+
+            elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
+
+                # Get the number of bytes to read
+                numBytes = int(2 * configParameters["numRangeBins"])
+                # Convert the raw data to int16 array
+                payload = byteBuffer[idX:idX + numBytes]
+                idX += numBytes
+                rangeProfile = payload.view(dtype=np.int16)
+
+                # Print the range profile
+                range_profile_generator(rangeProfile)
 
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
 
@@ -280,10 +305,14 @@ def readAndParseData16xx(Dataport, configParameters):
                     continue
 
                 # Convert the range doppler array to a matrix
-                rangeDoppler = np.reshape(rangeDoppler, (int(configParameters["numDopplerBins"]), int(configParameters["numRangeBins"])),
+                rangeDoppler = np.reshape(rangeDoppler, (
+                    int(configParameters["numDopplerBins"]), int(configParameters["numRangeBins"])),
                                           'F')  # Fortran-like reshape
                 rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
                                          rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
+
+                print(np.real(rangeDoppler))
+                print(np.imag(rangeDoppler))
 
                 # Generate the range and doppler arrays for the plot
                 rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
@@ -291,7 +320,49 @@ def readAndParseData16xx(Dataport, configParameters):
                     np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
                     configParameters["dopplerResolutionMps"])
 
-                print_generator(rangeArray, dopplerArray, rangeDoppler)
+                # print_generator(rangeArray, dopplerArray, rangeDoppler)
+
+
+            elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
+                numTxAzimAnt = 4
+                numRxAnt = 4
+                numBytes = numTxAzimAnt * numRxAnt * configParameters["numRangeBins"] * 4
+
+                q = byteBuffer[idX:idX + numBytes]
+
+                idX += numBytes
+                qrows = numTxAzimAnt * numRxAnt
+                qcols = configParameters["numRangeBins"]
+                NUM_ANGLE_BINS = 64
+
+                real = q[::4] + q[1::4] * 256
+                imaginary = q[2::4] + q[3::4] * 256
+
+                real = real.astype(np.int16)
+                imaginary = imaginary.astype(np.int16)
+
+                q = real + 1j * imaginary
+
+                q = np.reshape(q, (qrows, qcols), order="F")
+
+                Q = np.fft.fft(q, NUM_ANGLE_BINS, axis=0)
+                QQ = np.fft.fftshift(abs(Q), axes=0)
+                QQ = QQ.T
+
+                QQ = QQ[:, 1:]
+                QQ = np.fliplr(QQ)
+
+                theta = np.rad2deg(
+                    np.arcsin(np.array(range(-NUM_ANGLE_BINS // 2 + 1, NUM_ANGLE_BINS // 2)) * (2 / NUM_ANGLE_BINS)))
+                rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
+
+                posX = np.outer(rangeArray.T, np.sin(np.deg2rad(theta)))
+                posY = np.outer(rangeArray.T, np.cos(np.deg2rad(theta)))
+
+                # Store the data in the azimMapObject dictionary
+                azimMapObject = {"posX": posX, "posY": posY, "range": rangeArray, "theta": theta, "heatMap": QQ}
+
+                range_azimuth_generator(azimMapObject)
 
         # Remove already processed data
         if 0 < idX < byteBufferLength:
@@ -317,7 +388,6 @@ CLIport, Dataport = serialConfig(configFileName)
 # Get the configuration parameters from the configuration file
 configParameters = parseConfigFile(configFileName)
 
-print(configParameters)
 
 # Main loop
 detObj = {}
@@ -341,8 +411,3 @@ while True:
         CLIport.close()
         Dataport.close()
         break
-
-
-
-
-
