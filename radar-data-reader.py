@@ -29,10 +29,13 @@ def range_azimuth_generator(azimMapObject):
     plt.pause(0.1)
 
 
-def range_profile_generator(rangeProfile):
+def range_profile_generator(range_array, rangeProfile):
     plt.clf()
-    cs = plt.plot(rangeProfile[:128])
-    fig.canvas.draw()
+    range_profile_dB = 20 * np.log10(np.abs(rangeProfile))
+    plt.plot(range_array[:128], range_profile_dB[:128])
+    plt.xlabel("Range (m)")
+    plt.ylabel("Power (dB)")
+    plt.grid(True)
     plt.pause(0.1)
 
 
@@ -286,9 +289,10 @@ def readAndParseData16xx(Dataport, configParameters):
                 payload = byteBuffer[idX:idX + numBytes]
                 idX += numBytes
                 rangeProfile = payload.view(dtype=np.int16)
+                rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
 
                 # Print the range profile
-                range_profile_generator(rangeProfile)
+                range_profile_generator(rangeArray, rangeProfile)
 
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
 
