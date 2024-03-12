@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # TO DO: Add your own config file
-configFileName = 'config_files/AWR294X_Range_profile.cfg'
+configFileName = 'config_files/AWR294X_Deb.cfg'
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
@@ -12,10 +12,31 @@ byteBufferLength = 0
 
 
 # ------------------------------------------------------------------
+def sar_image_formation(data):
+    num_range_bins, num_doppler_bins = data.shape
+
+    # Initialize SAR image
+    sar_image = np.zeros((num_range_bins, num_doppler_bins), dtype=complex)
+
+    # Perform SAR imaging
+    for i in range(num_range_bins):
+        for j in range(num_doppler_bins):
+            range_distance = i * range_resolution
+            doppler_frequency = j * doppler_resolution
+
+            # Simple phase correction based on range and Doppler
+            phase_correction = np.exp(-2j * np.pi * range_distance * doppler_frequency)
+
+            # Apply phase correction to each element of time-stacked data
+            sar_image[i, j] = np.sum(data * phase_correction)
+
+    return sar_image
+
+
 def print_generator(range_arr, doppler_array, range_doppler):
     plt.clf()
-
-    cs = plt.contourf(range_doppler.real)
+    print(range_doppler.shape)
+    cs = plt.contourf(range_arr[:128], doppler_array, range_doppler[:, :128])
     fig.colorbar(cs, shrink=0.9)
     fig.canvas.draw()
     plt.pause(0.1)
@@ -31,8 +52,9 @@ def range_azimuth_generator(azimMapObject):
 
 def range_profile_generator(range_array, rangeProfile):
     plt.clf()
-    range_profile_dB = 20 * np.log10(np.abs(rangeProfile))
-    plt.plot(range_array[:128], range_profile_dB[:128])
+    range_profile_dB = 20 * np.log10(np.abs(rangeProfile))[:128]
+    np.savez("data/range-profile.npz", range_array=range_array[:128], range_profile_dB=range_profile_dB)
+    plt.plot(range_array[:128], range_profile_dB)
     plt.xlabel("Range (m)")
     plt.ylabel("Power (dB)")
     plt.grid(True)
@@ -315,16 +337,13 @@ def readAndParseData16xx(Dataport, configParameters):
                 rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
                                          rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
 
-                print(np.real(rangeDoppler))
-                print(np.imag(rangeDoppler))
-
                 # Generate the range and doppler arrays for the plot
                 rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
                 dopplerArray = np.multiply(
                     np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
                     configParameters["dopplerResolutionMps"])
 
-                # print_generator(rangeArray, dopplerArray, rangeDoppler)
+                print_generator(rangeArray, dopplerArray, rangeDoppler)
 
 
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
@@ -391,7 +410,6 @@ CLIport, Dataport = serialConfig(configFileName)
 
 # Get the configuration parameters from the configuration file
 configParameters = parseConfigFile(configFileName)
-
 
 # Main loop
 detObj = {}
