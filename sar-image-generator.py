@@ -1,56 +1,64 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Radar parameters
-num_doppler_bins = 16
-num_range_bins = 128
-range_resolution_meters = 0.04360212053571429
-range_idx_to_meters = 0.04360212053571429
-doppler_resolution_mps = 0.12518841691334906
-max_range = 10.045928571428572
-max_velocity = 2.003014670613585
+data = np.load("data/range-doppler.npz", allow_pickle=True)
+
+rd_data = data['out_x']
+
+configParameters = {'numDopplerBins': 16, 'numRangeBins': 128, 'rangeResolutionMeters': 0.04360212053571429,
+                    'rangeIdxToMeters': 0.04360212053571429, 'dopplerResolutionMps': 0.12518841691334906,
+                    'maxRange': 10.045928571428572, 'maxVelocity': 2.003014670613585}  # AWR2944X_Deb
+# Generate the range and doppler arrays for the plot
+rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
+dopplerArray = np.multiply(np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
+                           configParameters["dopplerResolutionMps"])
 
 
-# Generate synthetic data (range profiles)
-def generate_range_profile(num_range_bins, target_distance, target_rcs):
-    range_axis = np.linspace(0, num_range_bins - 1, num_range_bins) * range_resolution_meters
-    target_echo = np.zeros(num_range_bins)
-    target_index = int(target_distance / range_idx_to_meters)
-    if target_index < num_range_bins:
-        target_echo[target_index] = target_rcs
-    return target_echo
+def calculate_doppler_centroid(config_parameters):
+    # Extract relevant parameters
+    num_doppler_bins = config_parameters['numDopplerBins']
+    doppler_resolution = config_parameters['dopplerResolutionMps']
+
+    # Calculate Doppler centroid (assuming uniform distribution)
+    centroid_doppler = (num_doppler_bins // 2) * doppler_resolution
+
+    return centroid_doppler
 
 
-target_distance = 5  # Ensure the target distance falls within the range bins
-target_rcs = 10  # Radar cross-section of target (arbitrary units)
-
-range_profiles = np.zeros((num_doppler_bins, num_range_bins))
-for i in range(num_doppler_bins):
-    range_profiles[i, :] = generate_range_profile(num_range_bins, target_distance, target_rcs)
-
-
-# Range compression (matched filtering)
-def matched_filter(signal):
-    pulse = np.hamming(len(signal))
-    return np.convolve(signal, pulse, mode='same')
+# Step 1: Preprocessing (Assuming no preprocessing for simplicity)
+def doppler_centroid_correction(datacube):
+    # Assuming Doppler centroid information is available (replace with your method)
+    centroid_doppler = calculate_doppler_centroid(configParameters)  # Replace with actual Doppler centroid value
+    rows, cols, _ = datacube.shape
+    n = np.arange(cols)[:, np.newaxis]  # Option 1: Expand n with new axis
+    # n = n.reshape(-1, 1)  # Option 2: Reshape n directly
+    return datacube * np.exp(-2j * np.pi * centroid_doppler * n / cols)
 
 
-range_profiles_compressed = np.apply_along_axis(matched_filter, axis=1, arr=range_profiles)
+data_cube = doppler_centroid_correction(rd_data)
 
+# Step 2: Range Compression (Matched Filtering)
+range_compressed_cube = np.fft.fft(data_cube, axis=1)
 
-# Doppler processing
-def doppler_processing(signal):
-    doppler_axis = np.linspace(-max_velocity, max_velocity, num_doppler_bins)
-    return np.fft.fftshift(np.fft.fft(signal, axis=0), axes=0), doppler_axis
+# Step 3: Doppler Processing (FFT along Doppler dimension)
+doppler_processed_cube = np.fft.fftshift(np.fft.fft(range_compressed_cube, axis=2), axes=2)
 
+# Step 4: Motion Compensation (Assuming no motion compensation for simplicity)
 
-range_profiles_doppler, doppler_axis = doppler_processing(range_profiles_compressed)
+# Step 5: Aperture Synthesis (Beam forming)
+# In this simplified example, we'll sum up all the slices coherently
+aperture_synthesis_image = np.sum(doppler_processed_cube, axis=0)
 
-# Plot the resulting SAR image
-plt.imshow(np.abs(range_profiles_doppler), cmap='gray', extent=[0, max_range, -max_velocity, max_velocity],
-           aspect='auto')
-plt.xlabel('Range (m)')
-plt.ylabel('Doppler Velocity (m/s)')
+# Step 6: Image Formation
+# Take absolute value (magnitude) to get the intensity of the image
+intensity_image = np.abs(aperture_synthesis_image)
+
+# Step 7: Post-Processing (None in this simplified example)
+
+# Display the final image
+plt.contourf(rangeArray, dopplerArray, intensity_image)
 plt.title('SAR Image')
-plt.colorbar(label='Amplitude')
+plt.xlabel('Range')
+plt.ylabel('Doppler')
+plt.colorbar(label='Intensity')
 plt.show()
