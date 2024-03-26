@@ -401,8 +401,11 @@ configParameters = parseConfigFile(configFileName)
 # Main loop
 detObj = {}
 frameData = {}
+heat_map = []
 currentIndex = 0
 fig = plt.figure()
+
+num_iterations = 20  # Number of iterations to save data
 
 while True:
     try:
@@ -410,13 +413,17 @@ while True:
 
         if dataOk:
             # Store the current frame into frameData
-            frameData[currentIndex] = azObj
+            heat_map.append(azObj['heatMap'])
+
             currentIndex += 1
 
-            # Check if currentIndex is a multiple of 20
-            if currentIndex % 20 == 0:
-                # Save frameData to a .npz file
-                np.savez("frameData_{:d}.npz".format(currentIndex // 20), **{str(k): v for k, v in frameData.items()})
+            if currentIndex >= num_iterations:
+                # Save radarData to a .npz file after desired iterations
+                np.savez('data/radar_data.npz', out_x=heat_map)
+                print(f"Radar data saved to radar_data.npz after {currentIndex} iterations.")
+
+                # Exit the loop after saving the data
+                break
 
         time.sleep(0.03)  # Sampling frequency of 30 Hz
 
@@ -425,7 +432,4 @@ while True:
         CLIport.write('sensorStop\n'.encode())
         CLIport.close()
         Dataport.close()
-
-        # Save the remaining frameData to a .npz file
-        np.savez("frameData_remaining.npz", **{str(k): v for k, v in frameData.items()})
         break
