@@ -25,6 +25,8 @@ def range_azimuth_generator(azimMapObject):
     plt.clf()
     X, Y = np.meshgrid(azimMapObject["theta"], azimMapObject["range"])
     plt.contourf(X, Y, azimMapObject["heatMap"])
+
+    print(azimMapObject['heatMap'])
     fig.canvas.draw()
     plt.pause(0.05)
 
