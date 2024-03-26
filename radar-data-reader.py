@@ -23,8 +23,7 @@ def print_generator(range_arr, doppler_array, range_doppler):
 
 def range_azimuth_generator(azimMapObject):
     plt.clf()
-    X, Y = np.meshgrid(azimMapObject["theta"], azimMapObject["range"])
-    plt.contourf(X, Y, azimMapObject["heatMap"])
+    plt.contourf(azimMapObject["posX"], azimMapObject["posY"], azimMapObject["heatMap"])
     fig.canvas.draw()
     plt.pause(0.05)
 
@@ -52,12 +51,12 @@ def serialConfig(configFileName):
     # Dataport = serial.Serial('/dev/ttyACM1', 852272)
 
     # Windows
-    # CLIport = serial.Serial('COM4', 115200)
-    # Dataport = serial.Serial('COM5', 852272)
+    CLIport = serial.Serial('COM4', 115200)
+    Dataport = serial.Serial('COM5', 852272)
 
     # Mac
-    CLIport = serial.Serial('/dev/tty.usbmodemRA2902371', 115200)
-    Dataport = serial.Serial('/dev/tty.usbmodemRA2902374', 852272)
+    # CLIport = serial.Serial('/dev/tty.usbmodemRA2902371', 115200)
+    # Dataport = serial.Serial('/dev/tty.usbmodemRA2902374', 852272)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -343,8 +342,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 qcols = configParameters["numRangeBins"]
                 NUM_ANGLE_BINS = 64
 
-                real = q[::4] + q[1::4] * 256
-                imaginary = q[2::4] + q[3::4] * 256
+                real = q[::4] + q[1::4] * 128
+                imaginary = q[2::4] + q[3::4] * 128
 
                 real = real.astype(np.int16)
                 imaginary = imaginary.astype(np.int16)
