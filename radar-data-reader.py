@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # TO DO: Add your own config file
-configFileName = 'config_files/AWR294X_Deb.cfg'
+configFileName = 'config_files/AWR294X_Azimuth-26.cfg'
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
@@ -12,30 +12,9 @@ byteBufferLength = 0
 
 
 # ------------------------------------------------------------------
-def sar_image_formation(data):
-    num_range_bins, num_doppler_bins = data.shape
-
-    # Initialize SAR image
-    sar_image = np.zeros((num_range_bins, num_doppler_bins), dtype=complex)
-
-    # Perform SAR imaging
-    for i in range(num_range_bins):
-        for j in range(num_doppler_bins):
-            range_distance = i * range_resolution
-            doppler_frequency = j * doppler_resolution
-
-            # Simple phase correction based on range and Doppler
-            phase_correction = np.exp(-2j * np.pi * range_distance * doppler_frequency)
-
-            # Apply phase correction to each element of time-stacked data
-            sar_image[i, j] = np.sum(data * phase_correction)
-
-    return sar_image
-
-
 def print_generator(range_arr, doppler_array, range_doppler):
     plt.clf()
-    print(range_doppler.shape)
+    print(range_doppler)
     cs = plt.contourf(range_arr[:128], doppler_array, range_doppler[:, :128])
     fig.colorbar(cs, shrink=0.9)
     fig.canvas.draw()
@@ -44,10 +23,10 @@ def print_generator(range_arr, doppler_array, range_doppler):
 
 def range_azimuth_generator(azimMapObject):
     plt.clf()
-    cs = plt.contourf(azimMapObject["heatMap"])
-    fig.colorbar(cs, shrink=0.9)
+    X, Y = np.meshgrid(azimMapObject["theta"], azimMapObject["range"])
+    plt.contourf(X, Y, azimMapObject["heatMap"])
     fig.canvas.draw()
-    plt.pause(0.1)
+    plt.pause(0.05)
 
 
 def range_profile_generator(range_array, rangeProfile):
@@ -73,8 +52,12 @@ def serialConfig(configFileName):
     # Dataport = serial.Serial('/dev/ttyACM1', 852272)
 
     # Windows
-    CLIport = serial.Serial('COM4', 115200)
-    Dataport = serial.Serial('COM5', 852272)
+    # CLIport = serial.Serial('COM4', 115200)
+    # Dataport = serial.Serial('COM5', 852272)
+
+    # Mac
+    CLIport = serial.Serial('/dev/tty.usbmodemRA2902371', 115200)
+    Dataport = serial.Serial('/dev/tty.usbmodemRA2902374', 852272)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -243,7 +226,7 @@ def readAndParseData16xx(Dataport, configParameters):
         # Read the TLV messages
         for tlvIdx in range(numTLVs):
 
-            # word array to convert 4 bytes to a 32 bit number
+            # word array to convert 4 bytes to a 32-bit number
             word = [1, 2 ** 8, 2 ** 16, 2 ** 24]
 
             # Check the header of the TLV message
@@ -310,7 +293,7 @@ def readAndParseData16xx(Dataport, configParameters):
                 # Convert the raw data to int16 array
                 payload = byteBuffer[idX:idX + numBytes]
                 idX += numBytes
-                rangeProfile = payload.view(dtype=np.int16)
+                rangeProfile = payload.view(dtype=np.float16)
                 rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
 
                 # Print the range profile
@@ -347,7 +330,7 @@ def readAndParseData16xx(Dataport, configParameters):
 
 
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
-                numTxAzimAnt = 4
+                numTxAzimAnt = 3
                 numRxAnt = 4
                 numBytes = numTxAzimAnt * numRxAnt * configParameters["numRangeBins"] * 4
 
