@@ -25,8 +25,6 @@ def range_azimuth_generator(azimMapObject):
     plt.clf()
     X, Y = np.meshgrid(azimMapObject["theta"], azimMapObject["range"])
     plt.contourf(X, Y, azimMapObject["heatMap"])
-
-    print(azimMapObject['heatMap'])
     fig.canvas.draw()
     plt.pause(0.05)
 
@@ -149,6 +147,7 @@ def readAndParseData16xx(Dataport, configParameters):
     dataOK = 0  # Checks if the data has been read correctly
     frameNumber = 0
     detObj = {}
+    azimMapObject = {}
     tlv_type = 0
 
     readBuffer = Dataport.read(Dataport.in_waiting)
@@ -332,6 +331,7 @@ def readAndParseData16xx(Dataport, configParameters):
 
 
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
+
                 numTxAzimAnt = 3
                 numRxAnt = 4
                 numBytes = numTxAzimAnt * numRxAnt * configParameters["numRangeBins"] * 4
@@ -372,6 +372,8 @@ def readAndParseData16xx(Dataport, configParameters):
 
                 range_azimuth_generator(azimMapObject)
 
+                dataOK = 1
+
         # Remove already processed data
         if 0 < idX < byteBufferLength:
             shiftSize = totalPacketLen
@@ -385,7 +387,7 @@ def readAndParseData16xx(Dataport, configParameters):
             if byteBufferLength < 0:
                 byteBufferLength = 0
 
-    return dataOK, frameNumber, detObj
+    return dataOK, frameNumber, detObj, azimMapObject
 
 
 # -------------------------    MAIN   -----------------------------------------
@@ -401,14 +403,20 @@ detObj = {}
 frameData = {}
 currentIndex = 0
 fig = plt.figure()
+
 while True:
     try:
-        dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters)
+        dataOk, frameNumber, detObj, azObj = readAndParseData16xx(Dataport, configParameters)
 
         if dataOk:
             # Store the current frame into frameData
-            frameData[currentIndex] = detObj
+            frameData[currentIndex] = azObj
             currentIndex += 1
+
+            # Check if currentIndex is a multiple of 20
+            if currentIndex % 20 == 0:
+                # Save frameData to a .npz file
+                np.savez("frameData_{:d}.npz".format(currentIndex // 20), **{str(k): v for k, v in frameData.items()})
 
         time.sleep(0.03)  # Sampling frequency of 30 Hz
 
@@ -417,4 +425,7 @@ while True:
         CLIport.write('sensorStop\n'.encode())
         CLIport.close()
         Dataport.close()
+
+        # Save the remaining frameData to a .npz file
+        np.savez("frameData_remaining.npz", **{str(k): v for k, v in frameData.items()})
         break
