@@ -342,8 +342,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 qcols = configParameters["numRangeBins"]
                 NUM_ANGLE_BINS = 64
 
-                real = q[::4] + q[1::4] * 128
-                imaginary = q[2::4] + q[3::4] * 128
+                real = q[::4] + q[1::4] * 256
+                imaginary = q[2::4] + q[3::4] * 256
 
                 real = real.astype(np.int16)
                 imaginary = imaginary.astype(np.int16)
