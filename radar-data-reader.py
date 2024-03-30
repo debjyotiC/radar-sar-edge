@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # TO DO: Add your own config file
-configFileName = 'config_files/AWR294X_Azimuth-26.cfg'
+configFileName = 'config_files/AWR294X_profile_2024_03_30T14_23_26_186.cfg'
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
@@ -331,7 +331,7 @@ def readAndParseData16xx(Dataport, configParameters):
 
             elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
 
-                numTxAzimAnt = 3
+                numTxAzimAnt = 4
                 numRxAnt = 4
                 numBytes = numTxAzimAnt * numRxAnt * configParameters["numRangeBins"] * 4
 
@@ -342,8 +342,8 @@ def readAndParseData16xx(Dataport, configParameters):
                 qcols = configParameters["numRangeBins"]
                 NUM_ANGLE_BINS = 64
 
-                real = q[::4] + q[1::4] * 256
-                imaginary = q[2::4] + q[3::4] * 256
+                real = q[::4] + q[1::4] * 128
+                imaginary = q[2::4] + q[3::4] * 128
 
                 real = real.astype(np.int16)
                 imaginary = imaginary.astype(np.int16)
@@ -404,7 +404,7 @@ heat_map = []
 currentIndex = 0
 fig = plt.figure()
 
-num_iterations = 20  # Number of iterations to save data
+num_iterations = 200  # Number of iterations to save data
 
 while True:
     try:
@@ -418,13 +418,13 @@ while True:
 
             if currentIndex >= num_iterations:
                 # Save radarData to a .npz file after desired iterations
-                np.savez('data/radar_data.npz', out_x=heat_map)
+                np.savez('data/npz_files/radar_data.npz', out_x=heat_map)
                 print(f"Radar data saved to radar_data.npz after {currentIndex} iterations.")
 
                 # Exit the loop after saving the data
                 break
 
-        time.sleep(0.03)  # Sampling frequency of 30 Hz
+        time.sleep(0.2)  # Sampling frequency of 30 Hz
 
     # Stop the program and close everything if Ctrl + c is pressed
     except KeyboardInterrupt:

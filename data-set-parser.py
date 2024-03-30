@@ -3,11 +3,14 @@ import matplotlib.pyplot as plt
 
 data = np.load("data/npz_files/home_indoor.npz")
 
-range_profile = data['out_x'].reshape(2, 9, 64)
+range_profile = data['out_x'].reshape(5, 9, 64)
 range_profile_label = data['out_y']
 
 range_data_empty = range_profile[0]
-range_data_human = range_profile[1]
+range_data_human_1 = range_profile[1]
+range_data_human_2 = range_profile[2]
+range_data_human_3 = range_profile[3]
+range_data_human_4 = range_profile[4]
 
 
 def cell_averaging_peak_detector(matrix, threshold=0.5):
@@ -31,21 +34,21 @@ def find_clusters_and_centroids(matrix):
 
     centroids = []
     for cluster_indices in clusters_indices:
-        centroid = np.array(cluster_indices)
-        centroids.append(centroid)
+        centroids.append(np.array(cluster_indices))
 
     return centroids
 
 
 peak_detected_range_data_empty = cell_averaging_peak_detector(range_data_empty, threshold=0.1)
-peak_detected_range_data_human = cell_averaging_peak_detector(range_data_human, threshold=0.1)
+peak_detected_range_data_human_1 = cell_averaging_peak_detector(range_data_human_1, threshold=0.1)
+peak_detected_range_data_human_2 = cell_averaging_peak_detector(range_data_human_2, threshold=0.1)
+peak_detected_range_data_human_3 = cell_averaging_peak_detector(range_data_human_3, threshold=0.1)
+peak_detected_range_data_human_4 = cell_averaging_peak_detector(range_data_human_4, threshold=0.1)
 
-empty_centroids = find_clusters_and_centroids(peak_detected_range_data_empty)
-human_centroids = find_clusters_and_centroids(peak_detected_range_data_human)
+# empty_centroids = find_clusters_and_centroids(peak_detected_range_data_empty)
+# human_centroids = find_clusters_and_centroids(peak_detected_range_data_human)
 
-print(human_centroids)
-
-fig, axs = plt.subplots(2, 1)
+fig, axs = plt.subplots(5, 1)
 
 # plot empty field
 axs[0].set_title("Empty field")
@@ -53,17 +56,32 @@ axs[0].imshow(peak_detected_range_data_empty)
 axs[0].set_xlabel('Range bins')
 axs[0].set_ylabel('Time (s)')
 
-for centroid in empty_centroids:
-    axs[0].scatter(centroid[1], centroid[0], color='red', marker='x')
+# for centroid in empty_centroids:
+#     axs[0].scatter(centroid[1], centroid[0], color='red', marker='x')
 
 # plot human in front of radar
 axs[1].set_title("Human in front of radar")
-axs[1].imshow(peak_detected_range_data_human)
+axs[1].imshow(peak_detected_range_data_human_1)
 axs[1].set_xlabel('Range bins')
 axs[1].set_ylabel('Time (s)')
 
-for centroid in human_centroids:
-    axs[1].scatter(centroid[1], centroid[0], color='red', marker='x')
+axs[2].set_title("Human in front of radar")
+axs[2].imshow(peak_detected_range_data_human_2)
+axs[2].set_xlabel('Range bins')
+axs[2].set_ylabel('Time (s)')
 
-plt.tight_layout()
+axs[3].set_title("Human in front of radar")
+axs[3].imshow(peak_detected_range_data_human_3)
+axs[3].set_xlabel('Range bins')
+axs[3].set_ylabel('Time (s)')
+
+axs[4].set_title("Human in front of radar")
+axs[4].imshow(peak_detected_range_data_human_4)
+axs[4].set_xlabel('Range bins')
+axs[4].set_ylabel('Time (s)')
+
+# for centroid in human_centroids:
+#     axs[1].scatter(centroid[1], centroid[0], color='red', marker='x')
+
+# plt.tight_layout()
 plt.show()
