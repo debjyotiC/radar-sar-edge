@@ -1,10 +1,16 @@
 import numpy as np
+from os import listdir
+from os.path import isdir, join
 import matplotlib.pyplot as plt
 
-data = np.load("data/npz_files/home_indoor.npz")
+dataset_path = 'data/csv_files/umbc'
 
-range_profile = data['out_x'].reshape(5, 9, 64)
-range_profile_label = data['out_y']
+all_targets = [target for target in listdir(dataset_path) if isdir(join(dataset_path, target))]
+
+data = np.load("data/npz_files/umbc_outdoor.npz")
+
+range_profile = data['out_x'].reshape(13, 9, 256)
+range_profile_label = data['out_y'].reshape(13, 9)
 
 
 def cell_averaging_peak_detector(matrix, threshold=0.5):
@@ -22,5 +28,8 @@ def cell_averaging_peak_detector(matrix, threshold=0.5):
 for count, frame in enumerate(range_profile):
     plt.clf()
     frame = cell_averaging_peak_detector(frame)
+    y = range_profile_label[count][0]-1
+    plt.title(all_targets[y])
     plt.imshow(frame)
-    plt.pause(0.5)
+    plt.tight_layout()
+    plt.pause(2)

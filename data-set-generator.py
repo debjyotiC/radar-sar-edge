@@ -3,7 +3,7 @@ import numpy as np
 from os import listdir
 from os.path import isdir, join
 
-dataset_path = 'data/csv_files'
+dataset_path = 'data/csv_files/umbc'
 
 all_targets = [target for target in listdir(dataset_path) if isdir(join(dataset_path, target))]
 
@@ -45,4 +45,4 @@ for folder in range(len(all_targets)):
 data_range_x = np.array(out_x_range_profile)
 data_range_y = np.array(out_y_range_profile)
 
-np.savez('data/npz_files/home_indoor.npz', out_x=data_range_x, out_y=data_range_y)
+np.savez('data/npz_files/umbc_outdoor.npz', out_x=data_range_x, out_y=data_range_y)

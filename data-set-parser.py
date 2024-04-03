@@ -45,8 +45,11 @@ peak_detected_range_data_human_2 = cell_averaging_peak_detector(range_data_human
 peak_detected_range_data_human_3 = cell_averaging_peak_detector(range_data_human_3, threshold=0.1)
 peak_detected_range_data_human_4 = cell_averaging_peak_detector(range_data_human_4, threshold=0.1)
 
-# empty_centroids = find_clusters_and_centroids(peak_detected_range_data_empty)
-# human_centroids = find_clusters_and_centroids(peak_detected_range_data_human)
+empty_centroids = find_clusters_and_centroids(peak_detected_range_data_empty)
+human_centroids_1 = find_clusters_and_centroids(peak_detected_range_data_human_1)
+human_centroids_2 = find_clusters_and_centroids(peak_detected_range_data_human_2)
+human_centroids_3 = find_clusters_and_centroids(peak_detected_range_data_human_3)
+human_centroids_4 = find_clusters_and_centroids(peak_detected_range_data_human_4)
 
 fig, axs = plt.subplots(5, 1)
 
@@ -56,32 +59,41 @@ axs[0].imshow(peak_detected_range_data_empty)
 axs[0].set_xlabel('Range bins')
 axs[0].set_ylabel('Time (s)')
 
-# for centroid in empty_centroids:
-#     axs[0].scatter(centroid[1], centroid[0], color='red', marker='x')
+for centroid in empty_centroids:
+    axs[0].scatter(centroid[1], centroid[0], color='red', marker='x')
 
 # plot human in front of radar
 axs[1].set_title("Human in front of radar")
 axs[1].imshow(peak_detected_range_data_human_1)
 axs[1].set_xlabel('Range bins')
 axs[1].set_ylabel('Time (s)')
+for centroid in human_centroids_1:
+    axs[1].scatter(centroid[1], centroid[0], color='red', marker='x')
+
 
 axs[2].set_title("Human in front of radar")
 axs[2].imshow(peak_detected_range_data_human_2)
 axs[2].set_xlabel('Range bins')
 axs[2].set_ylabel('Time (s)')
+for centroid in human_centroids_2:
+    axs[2].scatter(centroid[1], centroid[0], color='red', marker='x')
+
 
 axs[3].set_title("Human in front of radar")
 axs[3].imshow(peak_detected_range_data_human_3)
 axs[3].set_xlabel('Range bins')
 axs[3].set_ylabel('Time (s)')
+for centroid in human_centroids_3:
+    axs[3].scatter(centroid[1], centroid[0], color='red', marker='x')
+
 
 axs[4].set_title("Human in front of radar")
 axs[4].imshow(peak_detected_range_data_human_4)
 axs[4].set_xlabel('Range bins')
 axs[4].set_ylabel('Time (s)')
 
-# for centroid in human_centroids:
-#     axs[1].scatter(centroid[1], centroid[0], color='red', marker='x')
+for centroid in human_centroids_4:
+    axs[4].scatter(centroid[1], centroid[0], color='red', marker='x')
 
 # plt.tight_layout()
 plt.show()
