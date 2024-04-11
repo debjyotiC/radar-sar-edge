@@ -9,8 +9,8 @@ all_targets = [target for target in listdir(dataset_path) if isdir(join(dataset_
 
 data = np.load("data/npz_files/umbc_outdoor.npz")
 
-range_profile = data['out_x'].reshape(13, 9, 256)
-range_profile_label = data['out_y'].reshape(13, 9)
+range_profile = data['out_x'].reshape(49, 9, 256)
+range_profile_label = data['out_y'].reshape(49, 9)
 
 
 def cell_averaging_peak_detector(matrix, threshold=0.5):
@@ -34,4 +34,4 @@ for count, frame in enumerate(range_profile):
     plt.xlabel("Range bin")
     plt.ylabel("Time (s)")
     plt.tight_layout()
-    plt.pause(4)
+    plt.pause(1)

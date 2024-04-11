@@ -20,7 +20,7 @@ for index, target in enumerate(all_targets):
 def calc_range_profile(data_frame, packet_id):
     payload = data_frame[packet_id].to_numpy()
     # Convert levels to dBm
-    # payload = 20 * np.log10(payload)
+    payload = 20 * np.log10(payload)
     return payload
 
 

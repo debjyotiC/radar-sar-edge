@@ -1,4 +1,4 @@
-conf_file_path = "config_files/AWR294X_Range_Profile_Empty.cfg"
+conf_file_path = "config_files/umbc_outdoor.cfg"
 
 
 def parseConfigFile(configFileName, Rx_Ant, Tx_Ant):
