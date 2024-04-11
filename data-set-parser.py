@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import median_filter
 from os import listdir
 from os.path import isdir, join
 import matplotlib.pyplot as plt
@@ -18,6 +19,20 @@ configParameters = {'numDopplerBins': 16, 'numRangeBins': 256, 'rangeResolutionM
 
 rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
 
+num_time_steps = 9
+num_range_bins = 256
+radar_data = np.random.rand(num_time_steps, num_range_bins)
+
+
+# Apply temporal filtering using a simple moving average filter
+def moving_average_filter(data, window_size):
+    filtered_data = np.zeros_like(data)
+    for i in range(data.shape[0]):
+        start_idx = max(0, i - window_size // 2)
+        end_idx = min(data.shape[0], i + window_size // 2 + 1)
+        filtered_data[i] = np.mean(data[start_idx:end_idx], axis=0)
+    return filtered_data
+
 
 def cell_averaging_peak_detector(matrix, threshold=0.5):
     row_means = np.mean(matrix, axis=1)
@@ -33,7 +48,9 @@ def cell_averaging_peak_detector(matrix, threshold=0.5):
 
 for count, frame in enumerate(range_profile):
     plt.clf()
-    frame = cell_averaging_peak_detector(frame, threshold=70.0)
+    frame = moving_average_filter(frame, window_size=20)
+    frame = cell_averaging_peak_detector(frame, threshold=0.1)
+
     y = range_profile_label[count][0] - 1
     plt.title(all_targets[y])
     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
