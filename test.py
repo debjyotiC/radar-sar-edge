@@ -31,5 +31,7 @@ for count, frame in enumerate(range_profile):
     y = range_profile_label[count][0]-1
     plt.title(all_targets[y])
     plt.imshow(frame)
+    plt.xlabel("Range bin")
+    plt.ylabel("Time (s)")
     plt.tight_layout()
-    plt.pause(2)
+    plt.pause(4)
