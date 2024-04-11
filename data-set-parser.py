@@ -25,12 +25,12 @@ radar_data = np.random.rand(num_time_steps, num_range_bins)
 
 
 # Apply temporal filtering using a simple moving average filter
-def moving_average_filter(data, window_size):
-    filtered_data = np.zeros_like(data)
-    for i in range(data.shape[0]):
+def moving_average_filter(radarData, window_size):
+    filtered_data = np.zeros_like(radarData)
+    for i in range(radarData.shape[0]):
         start_idx = max(0, i - window_size // 2)
-        end_idx = min(data.shape[0], i + window_size // 2 + 1)
-        filtered_data[i] = np.mean(data[start_idx:end_idx], axis=0)
+        end_idx = min(radarData.shape[0], i + window_size // 2 + 1)
+        filtered_data[i] = np.mean(radarData[start_idx:end_idx], axis=0)
     return filtered_data
 
 
