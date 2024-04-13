@@ -48,13 +48,13 @@ def cell_averaging_peak_detector(matrix, threshold=0.5):
 
 for count, frame in enumerate(range_profile):
     plt.clf()
-    frame = moving_average_filter(frame, window_size=20)
+    # frame = moving_average_filter(frame, window_size=20)
     frame = cell_averaging_peak_detector(frame, threshold=0.1)
-
+    print(count)
     y = range_profile_label[count][0] - 1
     plt.title(all_targets[y])
     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
     plt.xlabel("Range (m)")
     plt.ylabel("Time (s)")
     plt.tight_layout()
-    plt.pause(1)
+    plt.pause(5)
