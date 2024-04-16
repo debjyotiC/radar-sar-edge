@@ -1,37 +1,47 @@
+import pandas as pd
 import numpy as np
 from os import listdir
 from os.path import isdir, join
-import matplotlib.pyplot as plt
 
 dataset_path = 'data/csv_files/umbc'
 
-all_targets = [target for target in listdir(dataset_path) if isdir(join(dataset_path, target))]
+all_targets = sorted([name for name in listdir(dataset_path) if isdir(join(dataset_path, name))], reverse=True)
 
-data = np.load("data/npz_files/umbc_outdoor.npz")
+print(all_targets)
 
-range_profile = data['out_x'].reshape(49, 9, 256)
-range_profile_label = data['out_y'].reshape(49, 9)
+filenames = []
+y = []
 
-
-def cell_averaging_peak_detector(matrix, threshold=0.5):
-    row_means = np.mean(matrix, axis=1)
-    max_values = np.max(matrix, axis=1)
-    peak_values = (row_means + max_values) / 2
-    peak_detected_matrix = np.zeros_like(matrix, dtype=int)
-    for i in range(matrix.shape[0]):
-        for j in range(matrix.shape[1]):
-            if matrix[i, j] >= threshold and matrix[i, j] >= peak_values[i]:
-                peak_detected_matrix[i, j] = 1
-    return peak_detected_matrix
+for index, target in enumerate(all_targets):
+    filenames.append(listdir(join(dataset_path, target)))
+    y.append(np.ones(len(filenames[index])) * index)
 
 
-for count, frame in enumerate(range_profile):
-    plt.clf()
-    frame = cell_averaging_peak_detector(frame)
-    y = range_profile_label[count][0]-1
-    plt.title(all_targets[y])
-    plt.imshow(frame)
-    plt.xlabel("Range bin")
-    plt.ylabel("Time (s)")
-    plt.tight_layout()
-    plt.pause(1)
+def calc_range_profile(file_name):
+    stacked_range_array = []
+
+    df = pd.read_csv(file_name)
+
+    for col in df.columns:
+        stacked_range_array.append(df[col])
+
+    return stacked_range_array
+
+
+out_x_range_profile = []
+out_y_range_profile = []
+
+for folder in range(len(all_targets)):
+    all_files = join(dataset_path, all_targets[folder])
+    for i in range(len(listdir(all_files))):
+        full_path = join(all_files, listdir(all_files)[i])
+
+        stacked_range_profile = np.array(calc_range_profile(full_path))
+
+        out_x_range_profile.append(stacked_range_profile)
+        out_y_range_profile.append(folder + 1)
+
+data_range_x = np.array(out_x_range_profile)
+data_range_y = np.array(out_y_range_profile)
+
+np.savez('data/npz_files/umbc_outdoor.npz', out_x=data_range_x, out_y=data_range_y)
