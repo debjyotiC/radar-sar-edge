@@ -46,15 +46,40 @@ def cell_averaging_peak_detector(matrix, threshold=0.5):
     return peak_detected_matrix
 
 
+processed_range_profile_data = []
+processed_range_profile_label = []
+
+# for count, frame in enumerate(range_profile):
+#     plt.clf()
+#     # frame = moving_average_filter(frame, window_size=20)
+#     frame = cell_averaging_peak_detector(frame, threshold=0.1)
+#     print(count)
+#     y = range_profile_label[count][0] - 1
+#     plt.title(all_targets[y])
+#     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
+#     plt.xlabel("Range (m)")
+#     plt.ylabel("Time (s)")
+#     plt.tight_layout()
+#     plt.pause(1)
+
 for count, frame in enumerate(range_profile):
     plt.clf()
-    # frame = moving_average_filter(frame, window_size=20)
-    frame = cell_averaging_peak_detector(frame, threshold=0.1)
-    print(count)
+    frame = cell_averaging_peak_detector(frame, threshold=70.1)
     y = range_profile_label[count][0] - 1
+
+    processed_range_profile_data.append(frame)
+    processed_range_profile_label.append(range_profile_label[count][0])
     plt.title(all_targets[y])
     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
     plt.xlabel("Range (m)")
     plt.ylabel("Time (s)")
     plt.tight_layout()
-    plt.pause(5)
+    plt.pause(.2)
+
+
+data_range_x = np.array(processed_range_profile_data)
+data_range_y = np.array(processed_range_profile_label)
+
+print(data_range_x.shape)
+
+np.savez('data/npz_files/umbc_outdoor_processed.npz', out_x=data_range_x, out_y=data_range_y)
