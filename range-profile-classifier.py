@@ -42,14 +42,14 @@ model = tf.keras.Sequential([
 
 # model.summary()
 model.compile(loss=tf.keras.losses.CategoricalCrossentropy(),
-              optimizer=tf.keras.optimizers.Adam(learning_rate=0.00001), metrics=['acc'])
+              optimizer=tf.keras.optimizers.Adam(learning_rate=0.000001), metrics=['acc'])
 
 # this controls the batch size
-BATCH_SIZE = 15
+BATCH_SIZE = 10
 train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=False)
 validation_dataset = validation_dataset.batch(BATCH_SIZE, drop_remainder=False)
 
-history = model.fit(train_dataset, epochs=300, validation_data=validation_dataset)
+history = model.fit(train_dataset, epochs=1000, validation_data=validation_dataset)
 
 
 acc = history.history['acc']

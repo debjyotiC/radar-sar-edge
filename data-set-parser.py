@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.ndimage import median_filter
+from scipy.signal import stft
 from os import listdir
 from os.path import isdir, join
 import matplotlib.pyplot as plt
@@ -22,6 +23,21 @@ rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameter
 num_time_steps = 9
 num_range_bins = 256
 radar_data = np.random.rand(num_time_steps, num_range_bins)
+
+
+def find_clusters_and_centroids(matrix):
+    clusters_indices = []
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            if matrix[i][j] == 1:
+                clusters_indices.append((i, j))
+
+    centroids = []
+    for cluster_indices in clusters_indices:
+        centroid = np.array(cluster_indices)
+        centroids.append(centroid)
+
+    return centroids
 
 
 # Apply temporal filtering using a simple moving average filter
@@ -64,7 +80,9 @@ processed_range_profile_label = []
 
 for count, frame in enumerate(range_profile):
     plt.clf()
-    frame = cell_averaging_peak_detector(frame, threshold=70.1)
+    frame = cell_averaging_peak_detector(frame, threshold=0)
+    centroids = find_clusters_and_centroids(frame)
+
     y = range_profile_label[count][0] - 1
 
     processed_range_profile_data.append(frame)
@@ -74,12 +92,11 @@ for count, frame in enumerate(range_profile):
     plt.xlabel("Range (m)")
     plt.ylabel("Time (s)")
     plt.tight_layout()
-    plt.pause(.2)
+    plt.pause(1)
 
-
-data_range_x = np.array(processed_range_profile_data)
-data_range_y = np.array(processed_range_profile_label)
-
-print(data_range_x.shape)
-
-np.savez('data/npz_files/umbc_outdoor_processed.npz', out_x=data_range_x, out_y=data_range_y)
+# data_range_x = np.array(processed_range_profile_data)
+# data_range_y = np.array(processed_range_profile_label)
+#
+# print(data_range_x.shape)
+#
+# np.savez('data/npz_files/umbc_outdoor_processed.npz', out_x=data_range_x, out_y=data_range_y)
