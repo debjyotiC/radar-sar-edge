@@ -62,32 +62,29 @@ def cell_averaging_peak_detector(matrix, threshold=0.5):
     return peak_detected_matrix
 
 
+ground_mask = np.ones((9, 256))
+ground_mask[:, :10] = 0
+
 processed_range_profile_data = []
 processed_range_profile_label = []
 
-# for count, frame in enumerate(range_profile):
-#     plt.clf()
-#     # frame = moving_average_filter(frame, window_size=20)
-#     frame = cell_averaging_peak_detector(frame, threshold=0.1)
-#     print(count)
-#     y = range_profile_label[count][0] - 1
-#     plt.title(all_targets[y])
-#     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
-#     plt.xlabel("Range (m)")
-#     plt.ylabel("Time (s)")
-#     plt.tight_layout()
-#     plt.pause(1)
-
 for count, frame in enumerate(range_profile):
     plt.clf()
-    frame = cell_averaging_peak_detector(frame, threshold=0)
+    frame = cell_averaging_peak_detector(frame, threshold=70.1)
     centroids = find_clusters_and_centroids(frame)
-
     y = range_profile_label[count][0] - 1
+    frame = frame * ground_mask
+
+    overall_sum = np.sum(frame)
+
+    if overall_sum > 9.0:
+        occupancy_type = "object detected"
+    else:
+        occupancy_type = "no object detected"
 
     processed_range_profile_data.append(frame)
     processed_range_profile_label.append(range_profile_label[count][0])
-    plt.title(all_targets[y])
+    plt.title(f"{all_targets[y]} with {occupancy_type}")
     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
     plt.xlabel("Range (m)")
     plt.ylabel("Time (s)")
