@@ -1,42 +1,139 @@
 import serial
 import time
 import numpy as np
-import matplotlib.pyplot as plt
+from scipy.signal import firwin
+from database_class import DatabaseConnector
+import os
+import pywt
+from datetime import datetime
 
-# TO DO: Add your own config file
-configFileName = 'config_files/AWR294X_profile_2024_03_30T14_23_26_186.cfg'
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+debug = True
+
+# TO DO: Add your own config file and model path
+configFileName = f'{script_dir}/config_files/xwr16xx_profile_2023_04_18T16_04_15_382.cfg'
+
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
 byteBufferLength = 0
 
+db_connector = DatabaseConnector(f"{script_dir}/radar_database.db")
+
 
 # ------------------------------------------------------------------
-def print_generator(range_arr, doppler_array, range_doppler):
-    plt.clf()
-    print(range_doppler)
-    cs = plt.contourf(range_arr[:128], doppler_array, range_doppler[:, :128])
-    fig.colorbar(cs, shrink=0.9)
-    fig.canvas.draw()
-    plt.pause(0.1)
+def wavelet_denoising(data, wavelet='db4', value=0.5):
+    # Perform the wavelet transform.
+    coefficients = pywt.wavedec2(data, wavelet)
+
+    # Threshold the coefficients.
+    threshold = pywt.threshold(coefficients[0], value=value)
+    coefficients[0] = pywt.threshold(coefficients[0], threshold)
+
+    # Inverse wavelet transform.
+    denoised_data = pywt.waverec2(coefficients, wavelet)
+
+    return denoised_data
 
 
-def range_azimuth_generator(azimMapObject):
-    plt.clf()
-    plt.contourf(azimMapObject["posX"], azimMapObject["posY"], azimMapObject["heatMap"])
-    fig.canvas.draw()
-    plt.pause(0.05)
+def pulse_doppler_filter(radar_data):
+    # Radar data dimensions: [range_bins, doppler_bins]
+    range_bins, doppler_bins = radar_data.shape
+
+    # Doppler filter length
+    filter_length = 11
+
+    # Generate filter coefficients using FIR filter design
+    filter_coeffs = firwin(filter_length, cutoff=0.2, window='hamming', fs=4.5)
+
+    # Output filtered data
+    filtered_data = np.zeros((range_bins, doppler_bins))
+
+    # Apply the pulse Doppler filter
+    for i in range(doppler_bins):
+        filtered_data[:, i] = np.convolve(radar_data[:, i], filter_coeffs, mode='same')
+
+    return filtered_data
 
 
-def range_profile_generator(range_array, rangeProfile):
-    plt.clf()
-    range_profile_dB = 20 * np.log10(np.abs(rangeProfile))[:128]
-    np.savez("data/range-profile.npz", range_array=range_array[:128], range_profile_dB=range_profile_dB)
-    plt.plot(range_array[:128], range_profile_dB)
-    plt.xlabel("Range (m)")
-    plt.ylabel("Power (dB)")
-    plt.grid(True)
-    plt.pause(0.1)
+def create_peak_matrix(matrix, threshold):
+    peak_matrix = np.zeros_like(matrix)
+
+    rows, cols = matrix.shape
+
+    for i in range(1, rows - 1):
+        for j in range(1, cols - 1):
+            current_value = matrix[i, j]
+            neighbors = [
+                matrix[i - 1, j],  # top
+                matrix[i + 1, j],  # bottom
+                matrix[i, j - 1],  # left
+                matrix[i, j + 1]  # right
+            ]
+
+            if current_value >= np.max(neighbors) and current_value >= threshold:
+                peak_matrix[i, j] = 1
+
+    return peak_matrix
+
+
+def highlight_peaks(matrix, threshold):
+    rows, cols = matrix.shape
+    peaks = []
+
+    for i in range(1, rows - 1):
+        for j in range(1, cols - 1):
+            if matrix[i, j] >= threshold:
+                neighbors = matrix[i - 1:i + 2, j - 1:j + 2]
+                if matrix[i, j] == np.max(neighbors):
+                    peaks.append((i, j))
+
+    return peaks
+
+
+def classifier_func(rangeArray, range_doppler):
+    mask = np.ones((16, 256))
+    mask[8] = 0  # make central frequencies zero
+
+    range_doppler_denoised = wavelet_denoising(range_doppler, wavelet='haar', value=0.7)
+    filtered_frame = pulse_doppler_filter(range_doppler_denoised) * mask
+    peaks = create_peak_matrix(filtered_frame, threshold=0.9)
+
+    std_peaks = np.std(peaks)
+
+    classes_values = ["Human_Present", "No_Human_detected"]
+
+    highlighted_peaks = highlight_peaks(range_doppler, threshold=70.0)
+    highlighted_peaks_array = np.array(highlighted_peaks)
+
+    try:
+        picked_elements = rangeArray[highlighted_peaks_array[:, 1]].round(2)[:4]  # select only 4 detected objects
+    except IndexError:
+        picked_elements = [0.01, 0.01]  # push dummy data
+
+    stacked_arr = np.vstack((picked_elements[:2],) * 5)  # Fist 2 elements of the detected range array stacked 5 times
+
+    if np.any(stacked_arr > 2.2):
+        predicted_class = classes_values[0]
+    else:
+        predicted_class = classes_values[1]
+
+    time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    if predicted_class == "Human_Present":
+        db = {'Prediction': predicted_class, "Score": std_peaks, "Detected objects": picked_elements, 'Time': time_now}
+    else:
+        db = {'Prediction': predicted_class, "Score": std_peaks, "Detected objects": picked_elements, 'Time': time_now}
+
+    db_connector.connect()
+    db_connector.insert_data("Prediction", f"{db['Prediction']}", "Score", f"{db['Score']}", "Detected objects",
+                             f"{db['Detected objects']}", "Time", f"{db['Time']}")
+    db_connector.insert_rdv_matrix(range_doppler, f"{db['Time']}")
+    db_connector.close()
+
+    if debug:
+        print(db)
 
 
 # Function to configure the serial ports and send the data from
@@ -44,19 +141,26 @@ def range_profile_generator(range_array, rangeProfile):
 def serialConfig(configFileName):
     global CLIport
     global Dataport
-    # Open the serial ports for the configuration and the data ports
 
-    # Raspberry pi / Ubuntu
-    # CLIport = serial.Serial('/dev/ttyACM0', 115200)
-    # Dataport = serial.Serial('/dev/ttyACM1', 852272)
+    port_found = False
 
-    # Windows
-    CLIport = serial.Serial('COM4', 115200)
-    Dataport = serial.Serial('COM5', 852272)
+    while not port_found:
+        try:
+            # Open the serial ports for the configuration and the data ports
 
-    # Mac
-    # CLIport = serial.Serial('/dev/tty.usbmodemRA2902371', 115200)
-    # Dataport = serial.Serial('/dev/tty.usbmodemRA2902374', 852272)
+            # Raspberry Pi / Ubuntu
+            CLIport = serial.Serial('/dev/ttyACM0', 115200)
+            Dataport = serial.Serial('/dev/ttyACM1', 921600)
+
+            # Windows
+            # CLIport = serial.Serial('COM6', 115200)
+            # Dataport = serial.Serial('COM7', 852272)
+
+            port_found = True
+
+        except serial.SerialException:
+            print("Serial port not found. Retrying in 1 second...")
+            time.sleep(1)
 
     # Read the configuration file and send it to the board
     config = [line.rstrip('\r\n') for line in open(configFileName)]
@@ -83,7 +187,7 @@ def parseConfigFile(configFileName):
 
         # Hard code the number of antennas, change if other configuration is used
         numRxAnt = 4
-        numTxAnt = 4
+        numTxAnt = 2
 
         # Get the information about the profile configuration
         if "profileCfg" in splitWords[0]:
@@ -146,7 +250,6 @@ def readAndParseData16xx(Dataport, configParameters):
     dataOK = 0  # Checks if the data has been read correctly
     frameNumber = 0
     detObj = {}
-    azimMapObject = {}
     tlv_type = 0
 
     readBuffer = Dataport.read(Dataport.in_waiting)
@@ -286,19 +389,6 @@ def readAndParseData16xx(Dataport, configParameters):
 
                 dataOK = 1
 
-            elif tlv_type == MMWDEMO_UART_MSG_RANGE_PROFILE:
-
-                # Get the number of bytes to read
-                numBytes = int(2 * configParameters["numRangeBins"])
-                # Convert the raw data to int16 array
-                payload = byteBuffer[idX:idX + numBytes]
-                idX += numBytes
-                rangeProfile = payload.view(dtype=np.float16)
-                rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
-
-                # Print the range profile
-                range_profile_generator(rangeArray, rangeProfile)
-
             elif tlv_type == MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP:
 
                 # Get the number of bytes to read
@@ -319,59 +409,14 @@ def readAndParseData16xx(Dataport, configParameters):
                                           'F')  # Fortran-like reshape
                 rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler) / 2):],
                                          rangeDoppler[:int(len(rangeDoppler) / 2)], axis=0)
-
+                rangeDoppler = 20 * np.log10(rangeDoppler)
                 # Generate the range and doppler arrays for the plot
                 rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
                 dopplerArray = np.multiply(
                     np.arange(-configParameters["numDopplerBins"] / 2, configParameters["numDopplerBins"] / 2),
                     configParameters["dopplerResolutionMps"])
 
-                print_generator(rangeArray, dopplerArray, rangeDoppler)
-
-
-            elif tlv_type == MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP:
-
-                numTxAzimAnt = 4
-                numRxAnt = 4
-                numBytes = numTxAzimAnt * numRxAnt * configParameters["numRangeBins"] * 4
-
-                q = byteBuffer[idX:idX + numBytes]
-
-                idX += numBytes
-                qrows = numTxAzimAnt * numRxAnt
-                qcols = configParameters["numRangeBins"]
-                NUM_ANGLE_BINS = 64
-
-                real = q[::4] + q[1::4] * 128
-                imaginary = q[2::4] + q[3::4] * 128
-
-                real = real.astype(np.int16)
-                imaginary = imaginary.astype(np.int16)
-
-                q = real + 1j * imaginary
-
-                q = np.reshape(q, (qrows, qcols), order="F")
-
-                Q = np.fft.fft(q, NUM_ANGLE_BINS, axis=0)
-                QQ = np.fft.fftshift(abs(Q), axes=0)
-                QQ = QQ.T
-
-                QQ = QQ[:, 1:]
-                QQ = np.fliplr(QQ)
-
-                theta = np.rad2deg(
-                    np.arcsin(np.array(range(-NUM_ANGLE_BINS // 2 + 1, NUM_ANGLE_BINS // 2)) * (2 / NUM_ANGLE_BINS)))
-                rangeArray = np.array(range(configParameters["numRangeBins"])) * configParameters["rangeIdxToMeters"]
-
-                posX = np.outer(rangeArray.T, np.sin(np.deg2rad(theta)))
-                posY = np.outer(rangeArray.T, np.cos(np.deg2rad(theta)))
-
-                # Store the data in the azimMapObject dictionary
-                azimMapObject = {"posX": posX, "posY": posY, "range": rangeArray, "theta": theta, "heatMap": QQ}
-
-                range_azimuth_generator(azimMapObject)
-
-                dataOK = 1
+                classifier_func(rangeArray, rangeDoppler)
 
         # Remove already processed data
         if 0 < idX < byteBufferLength:
@@ -386,7 +431,7 @@ def readAndParseData16xx(Dataport, configParameters):
             if byteBufferLength < 0:
                 byteBufferLength = 0
 
-    return dataOK, frameNumber, detObj, azimMapObject
+    return dataOK, frameNumber, detObj
 
 
 # -------------------------    MAIN   -----------------------------------------
@@ -400,31 +445,17 @@ configParameters = parseConfigFile(configFileName)
 # Main loop
 detObj = {}
 frameData = {}
-heat_map = []
 currentIndex = 0
-fig = plt.figure()
-
-num_iterations = 200  # Number of iterations to save data
-
 while True:
     try:
-        dataOk, frameNumber, detObj, azObj = readAndParseData16xx(Dataport, configParameters)
+        dataOk, frameNumber, detObj = readAndParseData16xx(Dataport, configParameters)
 
         if dataOk:
             # Store the current frame into frameData
-            heat_map.append(azObj['heatMap'])
-
+            frameData[currentIndex] = detObj
             currentIndex += 1
 
-            if currentIndex >= num_iterations:
-                # Save radarData to a .npz file after desired iterations
-                np.savez('data/npz_files/radar_data.npz', out_x=heat_map)
-                print(f"Radar data saved to radar_data.npz after {currentIndex} iterations.")
-
-                # Exit the loop after saving the data
-                break
-
-        time.sleep(0.2)  # Sampling frequency of 30 Hz
+        time.sleep(0.03)  # Sampling frequency of 30 Hz
 
     # Stop the program and close everything if Ctrl + c is pressed
     except KeyboardInterrupt:
