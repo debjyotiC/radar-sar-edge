@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # TO DO: Add your own config file
-configFileName = 'config_files/AWR294X_profile_2024_03_30T14_23_26_186.cfg'
+configFileName = 'config_files/AWR294X_Range_Profile_Empty.cfg'
 CLIport = {}
 Dataport = {}
 byteBuffer = np.zeros(2 ** 15, dtype='uint8')
