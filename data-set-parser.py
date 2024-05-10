@@ -5,14 +5,11 @@ from os import listdir
 from os.path import isdir, join
 import matplotlib.pyplot as plt
 
-dataset_path = 'data/csv_files/umbc'
-
-all_targets = [target for target in listdir(dataset_path) if isdir(join(dataset_path, target))]
-
 data = np.load("data/npz_files/umbc_outdoor.npz")
 
-range_profile = data['out_x'].reshape(49, 9, 256)
-range_profile_label = data['out_y'].reshape(49, 9)
+print(data['out_x'].shape)
+range_profile = data['out_x'].reshape(118, 9, 256)
+range_profile_label = data['out_y'].reshape(118, 9)
 
 configParameters = {'numDopplerBins': 16, 'numRangeBins': 256, 'rangeResolutionMeters': 0.04212121212121212,
                     'rangeIdxToMeters': 0.023693181818181818, 'dopplerResolutionMps': 0.12507267556268029,
@@ -84,7 +81,8 @@ for count, frame in enumerate(range_profile):
 
     processed_range_profile_data.append(frame)
     processed_range_profile_label.append(range_profile_label[count][0])
-    plt.title(f"{all_targets[y]} with {occupancy_type}")
+    # plt.title(f"{all_targets[y]} with {occupancy_type}")
+    plt.title(f"{occupancy_type}")
     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
     plt.xlabel("Range (m)")
     plt.ylabel("Time (s)")
