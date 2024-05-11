@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 data = np.load("data/npz_files/umbc_outdoor.npz")
 
-print(data['out_x'].shape)
 range_profile = data['out_x'].reshape(118, 9, 256)
 range_profile_label = data['out_y'].reshape(118, 9)
 
@@ -76,22 +75,18 @@ for count, frame in enumerate(range_profile):
 
     if overall_sum > 9.0:
         occupancy_type = "object detected"
+        detected = True
     else:
         occupancy_type = "no object detected"
+        detected = False
 
+    obj_dict = {"Obj_Detected": detected, "Obj_Class": None, "Obj_Distance": None}
+    print(obj_dict)
     processed_range_profile_data.append(frame)
     processed_range_profile_label.append(range_profile_label[count][0])
-    # plt.title(f"{all_targets[y]} with {occupancy_type}")
     plt.title(f"{occupancy_type}")
     plt.imshow(frame, extent=[rangeArray[0], rangeArray[-1], 0, 10])
     plt.xlabel("Range (m)")
     plt.ylabel("Time (s)")
     plt.tight_layout()
     plt.pause(1)
-
-# data_range_x = np.array(processed_range_profile_data)
-# data_range_y = np.array(processed_range_profile_label)
-#
-# print(data_range_x.shape)
-#
-# np.savez('data/npz_files/umbc_outdoor_processed.npz', out_x=data_range_x, out_y=data_range_y)
